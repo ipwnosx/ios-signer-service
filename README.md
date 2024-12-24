@@ -1,69 +1,54 @@
 <p align="center">
     <img width="256" heigth="256" src="img/logo.png">
-    <h1 align="center">iOS Signer Service</h1>
+    <h1 align="center">SignTools</h1>
     <p align="center">
-        A self-hosted, cross-platform service to sign and install iOS apps, all <b>without a computer</b>.
+        A free, self-hosted platform to sign and install iOS apps without a computer
     </p>
     <p align="center">
-        <img alt="GitHub" src="https://img.shields.io/github/license/signtools/ios-signer-service">
-        <img alt="GitHub issues" src="https://img.shields.io/github/issues/signtools/ios-signer-service">
-        <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/signtools/ios-signer-service">
-        <img alt="Docker Image Version (latest semver)" src="https://img.shields.io/docker/v/signtools/ios-signer-service">
-        <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/signtools/ios-signer-service/total">
-        <img alt="GitHub release (latest SemVer)" src="https://img.shields.io/github/v/release/signtools/ios-signer-service">
+        <img alt="GitHub" src="https://img.shields.io/github/license/signtools/SignTools">
+        <img alt="GitHub issues" src="https://img.shields.io/github/issues/signtools/SignTools">
+        <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/signtools/signtools">
+        <img alt="Docker Image Version (latest semver)" src="https://img.shields.io/docker/v/signtools/signtools">
+        <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/signtools/SignTools/total">
+        <img alt="GitHub release (latest SemVer)" src="https://img.shields.io/github/v/release/signtools/SignTools">
     </p>
 </p>
 
 ## Introduction
 
-There are many reasons to install apps outside Apple's App Store. Unfortunately, this process is severely hindered by Apple and unrealistic for the average user. This is where iOS Signer Service comes to the rescue. No more terminal, no more computer. Sideload any app directly from your phone through a simple web interface.
-
-What's the catch? The workflow uses a separate macOS machine, called a "builder", to perform the signing. This project is only a web service which controls the builder, along with a web interface for you to upload unsigned apps and download signed apps. However, **you don't need to own a Mac** - the builder can be any **free** CI (Continuous Integration) provider or even your own machine. The web service can be hosted on any computer or **even your phone**.
-
-More information and examples can be found in the installation section.
-
-## :rocket: Free developer accounts
-
-As of v2.0.0 this service now supports **free developer accounts**! Although with some [severe limitations](FAQ.md), this is a huge milestone not only for the project but for the sideloading community as a whole. The signing process is achieved **without any** reverse engineering or third-party tools - only Apple's very own operating system and developer tools are used, just in a clever way.
+SignTools is a sideloading platform that takes a different approach from any similar tools. It consists of two components — a **service** and a **builder**. The builder is a macOS machine which performs signing using official Apple software. Doing so means high reliability and compatibility. The service (this repo) can be hosted anywhere, and it provides a web interface for you to upload, sign, and download apps, using the builder where necessary. Having the web service means that you don't need anything installed on your phone, and you can still sideload without a computer.
 
 ## Disclaimer
 
-This project is self-hosted; there is no public service. It does not provide any alternative catalog of apps. This project does not provide, promote, or support any form of piracy. This project is aimed solely at people who want to install homebrew apps on their device, much like the popular [AltStore](https://github.com/rileytestut/AltStore). We (all collaborators) cannot be held liable for anything that happens by you using this project.
+This project is self-hosted and does not constitute a public service. It does not offer any alternative catalog of applications, nor does it endorse or support any form of piracy. The sole purpose of this project is to enable users to use homebrew apps or tweaks on their devices.
+
+By using this project, you acknowledge and agree that the developers and collaborators cannot be held responsible for any damages, losses, or consequences incurred as a result of your use of this project. Please exercise caution and ensure that you comply with all applicable laws and regulations when using this project.
 
 ## Features
 
 - No jailbreak required
-- All iOS versions supported
-- No computer required at all
+- iOS, iPadOS, macOS (native + IPA) supported
+- No computer required after an initial setup
 - Minimalistic, mobile-friendly web interface
 - Upload unsigned apps, download signed apps
+- Inject tweaks as you are signing apps
 - Install signed apps from the website straight to your iOS device via [OTA](https://medium.com/@adrianstanecki/distributing-and-installing-non-market-ipa-application-over-the-air-ota-2e65f5ea4a46)
-- Choose from multiple signing profiles or free developer accounts
-- Configure various aspects of the signing process
-- Periodic old file cleanup
+- Provisioning profiles and developer accounts supported
+- Configurable signing including entitlements
+- Choose from multiple signing profiles for each app
 
 ## Screenshots
 
 <table>
 <tr>
-    <th>Mobile</th>
-    <th>Desktop</th>
-</tr>
-<tr>
     <td>
-        <img src="img/3.png"/>
-        <img src="img/4.png"/>
-    </td>
-    <td>
-        <img src="img/1.png"/>
-        <img src="img/2.png"/>
+        <img height="600px" src="img/3.png"/>
+        <img height="600px" src="img/4.png"/>
     </td>
 </tr>
 </table>
 
 ## [Installation](INSTALL.md)
-
-## [How does this all work?](DETAILS.md)
 
 ## [Frequently Asked Questions (FAQ)](FAQ.md)
 

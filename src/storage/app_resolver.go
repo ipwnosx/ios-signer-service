@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"SignTools/src/util"
+	"github.com/pkg/errors"
 	"io"
-	"ios-signer-service/src/util"
+	"os"
 	"sort"
 	"sync"
 )
@@ -21,13 +23,14 @@ type appResolver struct {
 func (r *appResolver) refresh() error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	idDirs, err := util.ReadDirNonHidden(appsPath)
+	idDirs, err := os.ReadDir(appsPath)
 	if err != nil {
-		return &AppError{"read apps dir", ".", err}
+		return errors.WithMessage(err, "read apps dir")
 	}
+	idDirs = util.RemoveHiddenDirs(idDirs)
 	for _, idDir := range idDirs {
 		id := idDir.Name()
-		r.idToAppMap[id] = loadAppFromId(id)
+		r.idToAppMap[id] = loadApp(id)
 	}
 	return nil
 }
@@ -58,29 +61,29 @@ func (r *appResolver) Get(id string) (App, bool) {
 	return app, true
 }
 
-func (r *appResolver) New(unsignedFile io.ReadSeeker, name string, profile Profile, signArgs string, userBundleId string) (App, error) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	app, err := newApp(unsignedFile, name, profile, signArgs, userBundleId)
+func (r *appResolver) New(unsignedFile io.Reader, name string, profile Profile, signArgs string, userBundleId string, builderId string, tweakMap map[string]io.Reader) (App, error) {
+	app, err := createApp(unsignedFile, name, profile, signArgs, userBundleId, builderId, tweakMap)
 	if err != nil {
-		return nil, &AppError{"new app", ".", err}
+		return nil, err
 	}
-
+	r.mutex.Lock()
 	r.idToAppMap[app.GetId()] = app
+	r.mutex.Unlock()
 	return app, nil
 }
 
 func (r *appResolver) Delete(id string) error {
 	r.mutex.Lock()
-	defer r.mutex.Unlock()
 	app, ok := r.idToAppMap[id]
 	if !ok {
+		r.mutex.Unlock()
 		return nil
 	}
-	if err := app._prune(); err != nil {
-		return &AppError{"prune app", ".", err}
+	appId := app.GetId()
+	delete(r.idToAppMap, appId)
+	r.mutex.Unlock()
+	if err := app.delete(); err != nil {
+		return errors.WithMessagef(err, "delete app id=%s", appId)
 	}
-	delete(r.idToAppMap, app.GetId())
 	return nil
 }

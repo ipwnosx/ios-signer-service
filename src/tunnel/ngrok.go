@@ -1,23 +1,23 @@
 package tunnel
 
 import (
+	"SignTools/src/util"
 	"fmt"
 	"github.com/ViRb3/sling/v2"
 	"github.com/pkg/errors"
-	"ios-signer-service/src/util"
 	"strings"
 	"time"
 )
 
 type Ngrok struct {
-	Port  uint64
+	Host  string
 	Proto string
 }
 
 func (n *Ngrok) getPublicUrl(timeout time.Duration) (string, error) {
-	ngrokUrl := fmt.Sprintf("http://localhost:%d/api/tunnels", n.Port)
+	ngrokUrl := fmt.Sprintf("http://%s/api/tunnels", n.Host)
 	if err := util.WaitForServer(ngrokUrl, timeout); err != nil {
-		return "", errors.WithMessage(err, "connecting to ngrok")
+		return "", errors.WithMessage(err, "connect to ngrok")
 	}
 	var tunnels Tunnels
 	response, err := sling.New().Get(ngrokUrl).ReceiveSuccess(&tunnels)

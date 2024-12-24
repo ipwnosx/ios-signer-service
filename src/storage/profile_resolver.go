@@ -1,7 +1,11 @@
 package storage
 
 import (
-	"ios-signer-service/src/util"
+	"SignTools/src/config"
+	"SignTools/src/util"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"os"
 	"sort"
 )
 
@@ -16,13 +20,23 @@ type profileResolver struct {
 }
 
 func (r *profileResolver) refresh() error {
-	idDirs, err := util.ReadDirNonHidden(profilesPath)
+	idDirs, err := os.ReadDir(profilesPath)
 	if err != nil {
-		return &AppError{"read profiles dir", ".", err}
+		return errors.WithMessage(err, "read profiles dir")
+	}
+	idDirs = util.RemoveHiddenDirs(idDirs)
+	envProfile, err := newEnvProfile(config.Current.EnvProfile)
+	if err == nil {
+		r.idToProfileMap[envProfile.GetId()] = envProfile
+	} else if !os.IsNotExist(err) {
+		return errors.WithMessage(err, "import profile from envvars")
 	}
 	for _, idDir := range idDirs {
 		id := idDir.Name()
-		profile := newProfile(id)
+		profile, err := loadProfile(id)
+		if err != nil {
+			log.Fatal().Err(err).Str("id", id).Msg("load profile from files")
+		}
 		r.idToProfileMap[id] = profile
 	}
 	return nil
@@ -34,8 +48,8 @@ func (r *profileResolver) GetAll() ([]Profile, error) {
 		profiles = append(profiles, profile)
 	}
 	sort.Slice(profiles, func(i, j int) bool {
-		name1, _ := profiles[i].GetName()
-		name2, _ := profiles[j].GetName()
+		name1, _ := profiles[i].GetString(ProfileName)
+		name2, _ := profiles[j].GetString(ProfileName)
 		return name1 < name2
 	})
 	return profiles, nil

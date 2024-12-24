@@ -1,258 +1,709 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>iOS Signer Service</title>
-    <link rel="icon" type="image/png" href="/favicon.png"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0"
-            crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
-            integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous"
-            async></script>
+  <head>
+    <meta charset="UTF-8" />
+    <title>SignTools</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      integrity="sha256-YvdLHPgkqJ8DVUxjjnGVlMMJtNimJ6dYkowFFvp4kKs="
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha256-9SEPo+fwJFpMUet/KACSwO+Z/dKMReF9q4zFhU/fT9M="
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
+      integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D"
+      crossorigin="anonymous"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css"
+      integrity="sha256-rzXMaro05QBd53CZ36ctTBp3FdKN3Ow0P0gDHcjLCLw="
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdn.jsdelivr.net/npm/uppy@2.9.3/dist/uppy.min.js"
+      integrity="sha256-AwzInV10JlTyQ3D+cm8UeCggCK6dujyU4Gmy4MCDTFo="
+      crossorigin="anonymous"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/uppy@2.9.3/dist/uppy.min.css"
+      integrity="sha256-1GDsETbuTbdWsQXcmt8zRLSsQhnVCZAAfPpCdKuiDi8="
+      crossorigin="anonymous"
+    />
     <style>
-        a, a:hover {
-            color: inherit;
-            text-decoration: none;
-        }
+      a,
+      a:hover {
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        user-select: none;
+      }
     </style>
-</head>
-<body>
-<nav class="navbar navbar-expand navbar-dark bg-dark py-3">
-    <div class="container px-4">
+  </head>
+  <body>
+    <nav class="navbar navbar-expand navbar-dark bg-dark py-3">
+      <div class="container px-4">
         <ol class="breadcrumb bg-transparent py-2 my-0 me-auto text-white">
-            <li class="breadcrumb-item"><a href="/">iOS Signer</a></li>
+          <li class="breadcrumb-item"><a href="/">SignTools</a></li>
         </ol>
-        <a id="fileSelect" class="btn btn-outline-light my-0 ms-auto" href="#">
-            Upload App
-        </a>
-    </div>
-</nav>
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form id="uploadForm" action="/apps" method="post" enctype="multipart/form-data">
-                <div class="modal-header">
-                    <h5 class="modal-title">Upload App</h5>
-                    <button id="btnModalClose" type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="formFile" class="form-label">App file</label>
-                        <input class="form-control" type="file" id="formFileSelect" name="{{.FormFile}}" required>
-                    </div>
-                    <div class="mb-3">
-                        <div class="col-md-8">
-                            <label for="formProfile" class="form-label">Signing profile</label>
-                            <select class="form-select" id="formProfile" name="{{.FormProfileId}}" required>
-                                <option selected disabled value="">Choose...</option>
-                                {{range $_, $profile := .Profiles}}
-                                    <option value="{{$profile.Id}}"
-                                            account="{{$profile.IsAccount}}">{{$profile.Name}}</option>
-                                {{end}}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="col-md-9">
-                            <label class="form-label">Bundle identifier</label>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="formIdOriginal" name="{{.FormId}}"
-                                       value="{{.FormIdOriginal}}" checked>
-                                <label style="display: inline" class="form-check-label" for="formIdOriginal">
-                                    Use the app's original bundle ID
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="formIdProv" name="{{.FormId}}"
-                                       value="{{.FormIdProv}}">
-                                <label style="display: inline" class="form-check-label" for="formIdProv">
-                                    Use provisioning profile's application ID
-                                </label>
-                                <a style="color: blue" href="#" data-bs-toggle="tooltip" data-bs-placement="right"
-                                   title="Fixes entitlements on explicit provisioning profiles.
-                                    For each profile, only one app signed this way can be installed at a time.">?</a>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="formIdCustom" name="{{.FormId}}"
-                                       value="{{.FormIdCustom}}">
-                                <label style="display: inline" class="form-check-label" for="formIdCustom">
-                                    Use custom:
-                                </label>
-                                <input type="text" class="form-control" name="{{.FormIdCustomText}}" disabled
-                                       id="formIdCustomText" placeholder="com.custom.app" required/>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label">Signing options</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="formAppDebug"
-                                   name="{{.FormAppDebug}}">
-                            <label style="display: inline" class="form-check-label" for="formAppDebug">
-                                Enable app debugging
-                            </label>
-                            <a style="color: blue" href="#" data-bs-toggle="tooltip" data-bs-placement="right"
-                               title="Enables the get-task-allow entitlement.
-                               Required by some emulators and jailbreaks.
-                               Your provisioning profile must support this entitlement.">?</a>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="formAllDevices"
-                                   name="{{.FormAllDevices}}">
-                            <label style="display: inline" class="form-check-label" for="formAllDevices">
-                                Force enable support for all devices
-                            </label>
-                            <a style="color: blue" href="#" data-bs-toggle="tooltip" data-bs-placement="right"
-                               title="Removes any iOS version or device model restrictions from the app.">?</a>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="formFileShare"
-                                   name="{{.FormFileShare}}">
-                            <label style="display: inline" class="form-check-label" for="formFileShare">
-                                Force enable file sharing through iTunes
-                            </label>
-                            <a style="color: blue" href="#" data-bs-toggle="tooltip" data-bs-placement="right"
-                               title="Allows you to access the app's data via iTunes and other file managers.">?</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <div id="formFileSpinner" class="spinner-border text-primary me-3" role="status"
-                         style="display: none"></div>
-                    <button id="formSubmit" type="button" class="btn btn-primary">Submit</button>
-                </div>
-            </form>
+        <div class="form-check form-switch ms-auto me-4">
+          <input class="form-check-input" type="checkbox" id="chkAutoRefresh" />
+          <label class="form-check-label text-white" for="chkAutoRefresh" id="lblAutoRefresh">Refresh</label>
         </div>
+        <a id="btnUploadApp" class="btn btn-outline-light my-0"> Upload App </a>
+      </div>
+    </nav>
+    <div class="modal" id="uploadModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <form id="uploadForm" action="/apps" method="post" enctype="multipart/form-data">
+            <div class="modal-header">
+              <h5 class="modal-title">Upload App</h5>
+              <button id="btnModalClose" type="button" class="btn-close"></button>
+            </div>
+            <div id="modalBody" class="modal-body">
+              <nav>
+                <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                  <button
+                    class="nav-link active"
+                    id="nav-main-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#nav-main"
+                    type="button"
+                    role="tab"
+                  >
+                    Main
+                  </button>
+                  <button
+                    class="nav-link"
+                    id="nav-advanced-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#nav-advanced"
+                    type="button"
+                    role="tab"
+                  >
+                    Advanced
+                  </button>
+                </div>
+              </nav>
+              <div class="tab-content" id="nav-tabContent">
+                <div class="tab-pane active pt-2" id="nav-main" role="tabpanel">
+                  <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                      <label class="form-label">App file</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="formFileUseUrl" />
+                        <label class="form-check-label" for="formFileUseUrl">URL</label>
+                      </div>
+                    </div>
+                    <input class="form-control" type="file" id="formFileSelect" required />
+                    <input class="form-control" type="text" id="formFileText" hidden disabled />
+                    <input
+                      class="form-control"
+                      type="text"
+                      id="formFileUrl"
+                      placeholder="https://git.io/myapp.ipa"
+                      name="{{.FormFileUrl}}"
+                      hidden
+                      required
+                    />
+                    <input
+                      class="form-control"
+                      type="text"
+                      id="formFileId"
+                      name="{{.FormFileId}}"
+                      hidden
+                      required
+                      readonly
+                    />
+                  </div>
+                  <div class="mb-2 col-md-8">
+                    <label for="formProfile" class="form-label">Signing profile</label>
+                    <select class="form-select" id="formProfile" name="{{.FormProfileId}}" required>
+                      <option selected disabled value="">Choose...</option>
+                      {{range $_, $profile := .Profiles}}
+                      <option value="{{$profile.Id}}" account="{{$profile.IsAccount}}">{{$profile.Name}}</option>
+                      {{end}}
+                    </select>
+                  </div>
+                  <div class="mb-2 col-md-8">
+                    <label for="formBuilder" class="form-label">Builder</label>
+                    <select class="form-select" id="formBuilder" name="{{.FormBuilderId}}" required>
+                      {{range $_, $builder := .Builders}}
+                      <option value="{{$builder.Id}}">{{$builder.Name}}</option>
+                      {{end}}
+                    </select>
+                  </div>
+                  <div class="mb-2 col-md-9">
+                    <label class="form-label">Bundle identifier</label>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        id="formIdOriginal"
+                        name="{{.FormId}}"
+                        value="{{.FormIdOriginal}}"
+                        checked
+                      />
+                      <label style="display: inline" class="form-check-label" for="formIdOriginal">
+                        Use app's original bundle ID
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        id="formIdProv"
+                        name="{{.FormId}}"
+                        value="{{.FormIdProv}}"
+                      />
+                      <label style="display: inline" class="form-check-label" for="formIdProv">
+                        Use provisioning profile's application ID
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Fixes entitlements with explicit provisioning profiles.
+                                For each profile, only one app signed this way can be installed at a time."
+                        >?</a
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        id="formIdCustom"
+                        name="{{.FormId}}"
+                        value="{{.FormIdCustom}}"
+                      />
+                      <label style="display: inline" class="form-check-label" for="formIdCustom"> Use custom: </label>
+                      <input
+                        type="text"
+                        class="form-control"
+                        name="{{.FormIdCustomText}}"
+                        disabled
+                        id="formIdCustomText"
+                        placeholder="com.custom.app"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="tab-pane pt-2" id="nav-advanced" role="tabpanel">
+                  <div class="mb-2 col-md-8">
+                    <label for="formBundleName" class="form-label">Bundle name (optional)</label>
+                    <a
+                      style="color: blue"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="right"
+                      title="The app's name on the home screen. Leave empty for unchanged."
+                      >?</a
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      name="{{.FormBundleName}}"
+                      id="formBundleName"
+                      placeholder="My Custom App"
+                    />
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label">ID options</label>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="formIdEncode"
+                        name="{{.FormIdEncode}}"
+                        disabled
+                      />
+                      <label style="display: inline" class="form-check-label" for="formIdEncode">
+                        Encode original IDs to unique IDs
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Allows you to sign apps whose IDs you do not own."
+                        >?</a
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="formIdPatch"
+                        name="{{.FormIdPatch}}"
+                        checked
+                      />
+                      <label style="display: inline" class="form-check-label" for="formIdPatch">
+                        Patch new IDs into app's binaries
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Fixes cases where the app expects its old IDs. Disable this if you have issues."
+                        >?</a
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="formIdForceOriginal"
+                        name="{{.FormIdForceOriginal}}"
+                      />
+                      <label style="display: inline" class="form-check-label" for="formIdForceOriginal">
+                        Force original bundle ID
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Fixes push notifications. Requires distribution certificate. Can break entitlements."
+                        >?</a
+                      >
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label">Additional options</label>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="formAppDebug" name="{{.FormAppDebug}}" />
+                      <label style="display: inline" class="form-check-label" for="formAppDebug">
+                        Enable app debugging
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Necessary for some emulators and jailbreaks. Requires development certificate."
+                        >?</a
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="formAllDevices"
+                        checked
+                        name="{{.FormAllDevices}}"
+                      />
+                      <label style="display: inline" class="form-check-label" for="formAllDevices">
+                        Force enable support for all devices
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Removes any iOS version or device model restrictions from the app."
+                        >?</a
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="formMac" name="{{.FormMac}}" />
+                      <label style="display: inline" class="form-check-label" for="formMac">
+                        Apply patches for Mac
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Applies patches that make the app work better on Mac, such as freeform window resizing."
+                        >?</a
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="formFileShare" name="{{.FormFileShare}}" />
+                      <label style="display: inline" class="form-check-label" for="formFileShare">
+                        Force enable file sharing
+                      </label>
+                      <a
+                        style="color: blue"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Allows you to access the app's data via the Files app, iTunes, and other file managers."
+                        >?</a
+                      >
+                    </div>
+                  </div>
+                  <div class="mb-0">
+                    <label class="form-label">Tweaks (optional)</label>
+                    <a
+                      style="color: blue"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="right"
+                      title="Injects tweaks into the app. Does not always work."
+                      >?</a
+                    >
+                    <input class="form-control" type="file" id="formTweaksSelect" multiple />
+                    <input
+                      class="form-control"
+                      type="text"
+                      id="formTweakIds"
+                      name="{{.FormTweakIds}}"
+                      hidden
+                      required
+                      readonly
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <div
+                id="formFileSpinner"
+                class="spinner-border text-primary me-3"
+                role="status"
+                style="display: none"
+              ></div>
+              <button id="formSubmit" type="button" class="btn btn-primary">Submit</button>
+              <div class="UppyProgressBar"></div>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
-</div>
-<div class="container py-4 py-xxl-5 py-xl-5 px-4">
-    <div class="row" data-masonry='{"percentPosition": true, "horizontalOrder": true}'>
+    <div class="container py-4 py-xxl-5 py-xl-5 px-4">
+      <div class="row col-md-8 col-l-7 col-xl-6 px-0 mx-auto pb-3">
+        <div class="input-group px-0">
+          <input type="text" id="inputSearchFilter" class="form-control" placeholder="Search app name" autofocus />
+          <button class="btn btn-outline-secondary" id="btnSearchClear">Clear</button>
+        </div>
+      </div>
+      <div class="row" id="masonryRow">
+        <div class="col-sm-6 col-lg-4 col-xl-3 p-2" id="appSizeItem"></div>
         {{range $_, $app := .Apps}}
-            <div class="col-sm-6 col-lg-4 col-xl-3 p-2">
-                <div class="card text-white
+        <div class="col-sm-6 col-lg-4 col-xl-3 p-2 appItem">
+          <div
+            class="card text-white
                     {{if eq $app.Status 0 }} bg-primary
                     {{else if eq $app.Status 1 }} bg-success
                     {{else if eq $app.Status 2 }} bg-danger
-                    {{end}}">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col">
-                                <h5 class="card-title" style="word-break: break-all">{{$app.Name}}</h5>
-                            </div>
-                            <div class="col-auto">
-                                <a class="btn-close btn-close-white p-2" href="{{$app.DeleteUrl}}"></a>
-                            </div>
-                        </div>
-                        <p class="card-text mb-2">
-                            {{if eq $app.Status 1 }} {{$app.BundleId}} <br> {{end}}
-                            {{$app.ProfileName}} <br>
-                            {{if eq $app.Status 0 }} Processing
-                            {{else if eq $app.Status 1 }} Signed
-                            {{else if eq $app.Status 2 }} Failed
-                            {{end}}
-                            <br>
-                            {{$app.ModTime}}
-                        </p>
-                        <div class="d-flex flex-wrap justify-content-end">
-                            {{if eq $app.Status 1 }}
-                                <a class="btn btn-outline-light mt-2 ms-2"
-                                   href="itms-services://?action=download-manifest&url={{$app.ManifestUrl}}">Install</a>
-                                <a class="btn btn-outline-light mt-2 ms-2"
-                                   href="{{$app.DownloadUrl}}">Download</a>
-                            {{else}}
-                                {{if eq $app.Status 0 }}
-                                    <a class="btn btn-outline-light mt-2 ms-2" href="{{$app.TwoFactorUrl}}">Submit
-                                        2FA</a>
-                                {{end}}
-                                <div class="d-flex">
-                                    <a class="btn btn-outline-light mt-2 ms-2" href="{{$app.RestartUrl}}">Restart</a>
-                                    <a class="btn btn-outline-light mt-2 ms-2 {{if lt (len $app.WorkflowUrl) 1}}disabled{{end}}"
-                                       href="{{$app.WorkflowUrl}}">Status</a>
-                                </div>
-                            {{end}}
-                        </div>
-                    </div>
+                    {{else if eq $app.Status 3 }} bg-secondary
+                    {{end}}"
+          >
+            <div class="card-body">
+              <div class="row">
+                <div class="col pe-0">
+                  <h5 class="card-title" style="word-break: break-all">{{$app.Name}}</h5>
                 </div>
+                <div class="col-auto">
+                  <div class="dropdown">
+                    <a class="bi bi-three-dots-vertical py-1 px-2" data-bs-toggle="dropdown"></a>
+                    <div class="dropdown-menu">
+                      <a class="dropdown-item dropdownCreateFrom" x-app-name="{{$app.Name}}" x-app-id="{{$app.Id}}"
+                        >Create from...</a
+                      >
+                      <a class="dropdown-item" href="{{$app.RenameUrl}}">Rename...</a>
+                      <a class="dropdown-item" href="{{$app.ResignUrl}}">Resign</a>
+                      <a class="dropdown-item" href="{{$app.DeleteUrl}}">Delete</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="card-text mb-2">
+                {{if gt $app.TweakCount 0}} {{$app.TweakCount}} tweaks <br />
+                {{end}} {{if eq $app.Status 1 }} {{$app.BundleId}} <br />
+                {{end}} {{$app.ProfileName}} <br />
+                {{if eq $app.Status 0 }} Processing {{else if eq $app.Status 1 }} Signed {{else if eq $app.Status 2 }}
+                Failed {{else if eq $app.Status 3 }} Waiting {{end}} <br />
+                {{$app.ModTime}}
+              </p>
+              <div class="d-flex flex-wrap justify-content-end">
+                {{if eq $app.Status 1 }}
+                <a class="btn btn-outline-light mt-2 ms-2" href="{{$app.InstallUrl}}">Install</a>
+                {{end}} {{if ne $app.Status 1 }}
+                <a
+                  class="btn btn-outline-light mt-2 ms-2 {{if lt (len $app.WorkflowUrl) 1}}disabled{{end}}"
+                  href="{{$app.WorkflowUrl}}"
+                  >Status</a
+                >
+                {{end}} {{if or (eq $app.Status 0) (eq $app.Status 3)}}
+                <a class="btn btn-outline-light mt-2 ms-2" href="{{$app.TwoFactorUrl}}">Submit 2FA</a>
+                {{end}} {{if or (eq $app.Status 1) (eq $app.Status 2)}}
+                <div class="dropdown">
+                  <a class="btn btn-outline-light mt-2 ms-2 dropdown-toggle" data-bs-toggle="dropdown">Download</a>
+                  <ul class="dropdown-menu">
+                    {{if eq $app.Status 1 }}
+                    <li><a class="dropdown-item" href="{{$app.DownloadSignedUrl}}">Signed</a></li>
+                    {{end}}
+                    <li><a class="dropdown-item" href="{{$app.DownloadUnsignedUrl}}">Original</a></li>
+                    {{if gt $app.TweakCount 0}}
+                    <li><a class="dropdown-item" href="{{$app.DownloadTweaksUrl}}">Tweaks</a></li>
+                    {{end}}
+                  </ul>
+                </div>
+                {{end}}
+              </div>
             </div>
+          </div>
+        </div>
         {{end}}
+      </div>
     </div>
-</div>
-</body>
+  </body>
 
-<script>
-    const fileSelect = document.getElementById("fileSelect")
+  <script>
+    const btnUploadApp = document.getElementById("btnUploadApp");
     const formFileSelect = document.getElementById("formFileSelect");
+    const formFileId = document.getElementById("formFileId");
+    const formFileText = document.getElementById("formFileText");
+    const formFileUseUrl = document.getElementById("formFileUseUrl");
+    const formFileUrl = document.getElementById("formFileUrl");
+    const formTweakIds = document.getElementById("formTweakIds");
+    const formTweaksSelect = document.getElementById("formTweaksSelect");
     const formSubmit = document.getElementById("formSubmit");
     const uploadForm = document.getElementById("uploadForm");
+    const modalBody = document.getElementById("modalBody");
     const formFileSpinner = document.getElementById("formFileSpinner");
-    const modalElem = document.getElementById('uploadModal')
+    const modalElem = document.getElementById("uploadModal");
     const modal = new bootstrap.Modal(modalElem, {
-        backdrop: "static",
-        keyboard: false
-    })
-    const btnModalClose = document.getElementById('btnModalClose')
-    const formProfile = document.getElementById('formProfile')
-    const formIdOriginal = document.getElementById('formIdOriginal')
-    const formIdProv = document.getElementById('formIdProv')
-    const formIdCustom = document.getElementById('formIdCustom')
-    const formIdCustomText = document.getElementById('formIdCustomText')
-    let modalVisible = false
-
-    fileSelect.addEventListener("click", function () {
-        formFileSelect.click();
+      backdrop: "static",
+      keyboard: false,
     });
-    modalElem.addEventListener("hidden.bs.modal", function () {
-        // allow change event to hit even if file is re-selected
-        formFileSelect.value = ""
-    })
-    formFileSelect.addEventListener("change", function () {
-        if (!modal.visible) {
-            modal.show()
+    const btnModalClose = document.getElementById("btnModalClose");
+    const formProfile = document.getElementById("formProfile");
+    const formIdOriginal = document.getElementById("formIdOriginal");
+    const formIdProv = document.getElementById("formIdProv");
+    const formIdCustom = document.getElementById("formIdCustom");
+    const formIdCustomText = document.getElementById("formIdCustomText");
+    const formIdEncode = document.getElementById("formIdEncode");
+    const formIdPatch = document.getElementById("formIdPatch");
+    const dropdownCreateFrom = document.getElementsByClassName("dropdownCreateFrom");
+    const inputSearchFilter = document.getElementById("inputSearchFilter");
+    const btnSearchClear = document.getElementById("btnSearchClear");
+    const chkAutoRefresh = document.getElementById("chkAutoRefresh");
+    const lblAutoRefresh = document.getElementById("lblAutoRefresh");
+    const dropdowns = document.getElementsByClassName("dropdown");
+    const masonryRow = document.getElementById("masonryRow");
+    let masonry = new Masonry(masonryRow, {
+      percentPosition: true,
+      horizontalOrder: true,
+      itemSelector: ".appItem",
+      columnWidth: "#appSizeItem",
+    });
+    const navMain = new bootstrap.Tab(document.getElementById("nav-main-tab"));
+
+    const uppy = new Uppy.Core();
+    uppy.use(Uppy.ProgressBar, {
+      target: ".UppyProgressBar",
+      fixed: true,
+      hideAfterFinish: false,
+    });
+    uppy.use(Uppy.Tus, {
+      endpoint: "/tus/",
+      parallelUploads: 6,
+    });
+
+    function addTusFileHook(formItem, uploadType) {
+      formItem.addEventListener("change", (event) => {
+        uppy
+          .getFiles()
+          .filter((f) => f.meta["uploadType"] === uploadType)
+          .forEach((f) => uppy.removeFile(f.id));
+        for (let file of event.target.files) {
+          try {
+            uppy.addFile({
+              name: file.name,
+              type: file.type,
+              data: file,
+              meta: {
+                uploadType: uploadType,
+              },
+            });
+          } catch (err) {
+            console.error(err);
+            alert(err);
+            formItem.value = "";
+          }
         }
+      });
+    }
+
+    addTusFileHook(formFileSelect, "ipa");
+    addTusFileHook(formTweaksSelect, "tweak");
+
+    modalElem.addEventListener("shown.bs.modal", function () {
+      modalBody.style.minHeight = `30.5rem`;
+    });
+    for (let item of dropdownCreateFrom) {
+      item.addEventListener("click", function () {
+        formFileId.value = item.getAttribute("x-app-id");
+        formFileText.hidden = false;
+        formFileText.value = item.getAttribute("x-app-name");
+        formFileSelect.hidden = true;
+        formFileSelect.disabled = true;
+        formFileUrl.hidden = true;
+        formFileUrl.disabled = true;
+        formFileUseUrl.disabled = true;
+        formFileUseUrl.checked = false;
+        modal.show();
+      });
+    }
+    btnUploadApp.addEventListener("click", function () {
+      formFileId.value = "";
+      formFileText.hidden = true;
+      formFileText.value = "";
+      formFileSelect.hidden = false;
+      formFileSelect.disabled = false;
+      formFileUrl.hidden = true;
+      formFileUrl.disabled = true;
+      formFileUseUrl.disabled = false;
+      formFileUseUrl.checked = false;
+      modal.show();
+    });
+    btnModalClose.addEventListener("click", function () {
+      modal.hide();
     });
     formSubmit.addEventListener("click", function () {
-        if (!uploadForm.checkValidity()) {
-            uploadForm.reportValidity()
-            return
-        }
-        formSubmit.classList.add("disabled")
-        btnModalClose.classList.add("disabled")
-        formFileSpinner.style.display = "inline-block"
+      if (!uploadForm.checkValidity()) {
+        // only first tab has required inputs
+        navMain.show();
+        uploadForm.reportValidity();
+        return;
+      }
+      formSubmit.disabled = true;
+      btnModalClose.disabled = true;
+      formFileSpinner.style.display = "inline-block";
 
-        // https://github.com/hakimel/Ladda/issues/71
-        setTimeout(function () {
-            uploadForm.submit()
-        }, 200)
+      uppy.upload().then((result) => {
+        if (result.failed.length > 0) {
+          for (let file of result.failed) {
+            console.error(file.error);
+            alert(file.error);
+          }
+          return;
+        }
+        function getIdFromUrl(url) {
+          return url.split("/").pop();
+        }
+        if (!formFileId.value) {
+          formFileId.value = result.successful
+            .filter((f) => f.meta["uploadType"] === "ipa")
+            .map((f) => f.uploadURL)
+            .map(getIdFromUrl)[0];
+        }
+        if (!formTweakIds.value) {
+          formTweakIds.value = result.successful
+            .filter((f) => f.meta["uploadType"] === "tweak")
+            .map((f) => f.uploadURL)
+            .map(getIdFromUrl)
+            .join(",");
+        }
+        uploadForm.submit();
+      });
+    });
+
+    formFileUseUrl.addEventListener("change", function () {
+      formFileSelect.hidden = !formFileSelect.hidden;
+      formFileSelect.disabled = !formFileSelect.disabled;
+      formFileUrl.hidden = !formFileUrl.hidden;
+      formFileUrl.disabled = !formFileUrl.disabled;
     });
     formProfile.addEventListener("change", function () {
-        const selectedOption = formProfile.options[formProfile.selectedIndex]
-        if (selectedOption.getAttribute('account') === 'true') {
-            if (formIdProv.checked) {
-                formIdOriginal.checked = true
-            }
-            formIdProv.setAttribute('disabled', 'true')
-        } else {
-            formIdProv.removeAttribute('disabled')
+      const selectedOption = formProfile.options[formProfile.selectedIndex];
+      if (selectedOption.getAttribute("account") === "true") {
+        if (formIdProv.checked) {
+          formIdOriginal.checked = true;
         }
-    })
+        formIdProv.disabled = true;
+        formIdEncode.checked = true;
+        formIdEncode.disabled = false;
+      } else {
+        formIdProv.disabled = false;
+        formIdEncode.checked = false;
+        formIdEncode.disabled = true;
+      }
+    });
     document.querySelectorAll('input[name="{{.FormId}}"]').forEach(function (a) {
-        a.addEventListener("change", function () {
-            if (formIdCustom.checked) {
-                formIdCustomText.removeAttribute('disabled')
-            } else {
-                formIdCustomText.setAttribute('disabled', 'true')
-            }
-        })
-    })
+      a.addEventListener("change", function () {
+        if (formIdCustom.checked) {
+          formIdCustomText.disabled = false;
+        } else {
+          formIdCustomText.disabled = true;
+        }
+      });
+    });
+
+    inputSearchFilter.addEventListener("input", function () {
+      if (inputSearchFilter.value === "") {
+        for (let app of document.getElementsByClassName("appItem")) {
+          app.hidden = false;
+        }
+        masonry.layout();
+        return;
+      }
+      let searchText = inputSearchFilter.value.toLowerCase();
+      for (let app of document.getElementsByClassName("appItem")) {
+        if (app.querySelector(".card-title").textContent.toLowerCase().includes(searchText)) {
+          app.hidden = false;
+        } else {
+          app.hidden = true;
+        }
+      }
+      masonry.layout();
+    });
+
+    const searchClearHandler = function () {
+      inputSearchFilter.value = "";
+      inputSearchFilter.dispatchEvent(new Event("input"));
+    };
+    inputSearchFilter.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        searchClearHandler();
+      }
+    });
+    btnSearchClear.addEventListener("click", searchClearHandler);
 
     // enable all tooltips
-    let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     let tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
-</script>
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    let autoRefreshHandle = null;
+    function checkAutoRefresh() {
+      if (localStorage.getItem("autoRefresh") != null) {
+        autoRefreshHandle = setTimeout(function () {
+          window.location.reload();
+        }, 5_000);
+      } else if (autoRefreshHandle != null) {
+        clearTimeout(autoRefreshHandle);
+        autoRefreshHandle = null;
+      }
+    }
+    chkAutoRefresh.addEventListener("click", function () {
+      if (chkAutoRefresh.checked) {
+        localStorage.setItem("autoRefresh", "true");
+      } else {
+        localStorage.removeItem("autoRefresh");
+      }
+      checkAutoRefresh();
+    });
+    document.addEventListener("click", function (e) {
+      if (e.target === chkAutoRefresh || e.target === lblAutoRefresh) {
+        return;
+      }
+      chkAutoRefresh.checked = false;
+      localStorage.removeItem("autoRefresh");
+      checkAutoRefresh();
+    });
+    document.addEventListener("keydown", function (e) {
+      chkAutoRefresh.checked = false;
+      localStorage.removeItem("autoRefresh");
+      checkAutoRefresh();
+    });
+    chkAutoRefresh.checked = localStorage.getItem("autoRefresh") != null;
+    checkAutoRefresh();
+  </script>
 </html>

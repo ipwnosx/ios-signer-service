@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"fmt"
+	"SignTools/src/util"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"io"
@@ -10,114 +10,92 @@ import (
 	"time"
 )
 
+const (
+	AppRoot         = FSName("")
+	AppSignArgs     = FSName("sign_args")
+	AppBundleId     = FSName("bundle_id")
+	AppSignedFile   = FSName("signed")
+	AppUnsignedFile = FSName("unsigned")
+	AppName         = FSName("name")
+	AppUserBundleId = FSName("user_bundle_id")
+	AppWorkflowUrl  = FSName("workflow_url")
+	AppProfileId    = FSName("profile_id")
+	AppBuilderId    = FSName("builder_id")
+	AppBundleName   = FSName("bundle_name")
+	TweaksDir       = FSName("tweaks")
+)
+
 type App interface {
 	GetId() string
-	GetSigned() (ReadonlyFile, error)
-	SetSigned(reader io.ReadSeeker, bundleId string) error
 	IsSigned() (bool, error)
-	GetUnsigned() (ReadonlyFile, error)
-	GetName() (string, error)
-	GetSignArgs() (string, error)
-	GetBundleId() (string, error)
-	GetUserBundleId() (string, error)
-	GetWorkflowUrl() (string, error)
-	SetWorkflowUrl(string) error
 	GetModTime() (time.Time, error)
 	ResetModTime() error
-	GetProfileId() (string, error)
-	_prune() error
+	delete() error
+	FileSystem
 }
 
-type AppError struct {
-	Message string
-	Id      string
-	Err     error
+func loadApp(id string) App {
+	return newApp(id)
 }
 
-func (e *AppError) Error() string {
-	return fmt.Sprintf("%s %s: %s", e.Message, e.Id, e.Err)
-}
-
-func loadAppFromId(id string) App {
-	return &app{id: id}
-}
-
-func newApp(unsignedFile io.ReadSeeker, name string, profile Profile, signArgs string, userBundleId string) (App, error) {
-	id := uuid.NewString()
-	app := &app{id: id}
-
-	if err := os.MkdirAll(appPath(id), os.ModePerm); err != nil {
-		return nil, &AppError{"make app dir", id, err}
+func createApp(unsignedFile io.Reader, name string, profile Profile, signArgs string, userBundleId string, builderId string, tweakMap map[string]io.Reader) (App, error) {
+	app := newApp(uuid.NewString())
+	if err := os.MkdirAll(app.resolvePath(AppRoot), os.ModePerm); err != nil {
+		return nil, errors.New("make app dir")
 	}
-	if err := app.setName(name); err != nil {
-		return nil, &AppError{"set name", id, err}
+	pairs := map[FSName]string{
+		AppName:         name,
+		AppSignArgs:     signArgs,
+		AppUserBundleId: userBundleId,
+		AppBuilderId:    builderId,
+		AppProfileId:    profile.GetId(),
 	}
-	if err := app.setProfileId(profile); err != nil {
-		return nil, &AppError{"set profile id", id, err}
+	for fileType, value := range pairs {
+		if err := app.SetString(fileType, value); err != nil {
+			return nil, errors.WithMessagef(err, "set %s", fileType)
+		}
 	}
-	if err := app.setUnsigned(unsignedFile); err != nil {
-		return nil, &AppError{"set unsigned", id, err}
+	if err := app.SetFile(AppUnsignedFile, unsignedFile); err != nil {
+		return nil, errors.WithMessagef(err, "set %s", AppUnsignedFile)
 	}
-	if err := app.setSignArgs(signArgs); err != nil {
-		return nil, &AppError{"set sign args", id, err}
+	if len(tweakMap) > 0 {
+		if err := app.MkDir(TweaksDir); err != nil {
+			return nil, err
+		}
 	}
-	if err := app.setUserBundleId(userBundleId); err != nil {
-		return nil, &AppError{"set user bundle id", id, err}
+	for name, tweak := range tweakMap {
+		tweakPath := FSName(util.SafeJoinFilePaths(string(TweaksDir), name))
+		if err := app.SetFile(tweakPath, tweak); err != nil {
+			return nil, errors.WithMessagef(err, "set %s", tweakPath)
+		}
 	}
 	return app, nil
+}
+
+func newApp(id string) *app {
+	return &app{id: id, FileSystemBase: FileSystemBase{resolvePath: func(name FSName) string {
+		return util.SafeJoinFilePaths(appsPath, id, string(name))
+	}}}
 }
 
 type app struct {
 	mu sync.RWMutex
 	id string
+	FileSystemBase
 }
 
-func (a *app) GetSignArgs() (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	data, err := readTrimSpace(appSignArgsPath(a.id))
-	if err != nil {
-		return "", &AppError{"read sign args file", a.id, err}
-	}
-	return data, nil
-}
-
-func (a *app) GetBundleId() (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	data, err := readTrimSpace(appBundleIdPath(a.id))
-	if err != nil {
-		return "", &AppError{"read bundle id file", a.id, err}
-	}
-	return data, nil
-}
-
-func (a *app) GetUserBundleId() (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	data, err := readTrimSpace(appUserBundleIdPath(a.id))
-	if err != nil {
-		return "", &AppError{"read user bundle id file", a.id, err}
-	}
-	return data, nil
-}
-
-func (a *app) GetProfileId() (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	data, err := readTrimSpace(appProfileIdPath(a.id))
-	if err != nil {
-		return "", &AppError{"read profile id file", a.id, err}
-	}
-	return data, nil
+func (a *app) delete() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return os.RemoveAll(a.resolvePath(AppRoot))
 }
 
 func (a *app) GetModTime() (time.Time, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	appDir, err := os.Stat(appPath(a.id))
+	appDir, err := os.Stat(a.resolvePath(AppRoot))
 	if err != nil {
-		return time.Time{}, &AppError{"stat app dir", a.id, err}
+		return time.Time{}, err
 	}
 	return appDir.ModTime(), nil
 }
@@ -125,150 +103,24 @@ func (a *app) GetModTime() (time.Time, error) {
 func (a *app) IsSigned() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.hasSignedFile()
+	if _, err := os.Stat(a.resolvePath(AppSignedFile)); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (a *app) GetId() string {
 	return a.id
 }
 
-func (a *app) GetSigned() (ReadonlyFile, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return os.Open(appSignedPath(a.id))
-}
-
-func (a *app) SetSigned(reader io.ReadSeeker, bundleId string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	exists, err := a.hasSignedFile()
-	if err != nil {
-		return &AppError{"already exists", a.id, err}
-	}
-	if exists {
-		return &AppError{"", a.id, errors.New("already exists")}
-	}
-	file, err := os.Create(appSignedPath(a.id))
-	if err != nil {
-		return &AppError{"create", a.id, err}
-	}
-	defer file.Close()
-	if _, err := io.Copy(file, reader); err != nil {
-		return &AppError{"write", a.id, err}
-	}
-	if err := a.setBundleId(bundleId); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *app) GetUnsigned() (ReadonlyFile, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return os.Open(appUnsignedPath(a.id))
-}
-
-func (a *app) GetName() (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	data, err := readTrimSpace(appNamePath(a.id))
-	if err != nil {
-		return "", &AppError{"read name file", a.id, err}
-	}
-	return data, nil
-}
-
-func (a *app) GetWorkflowUrl() (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	data, err := readTrimSpace(appWorkflowUrlPath(a.id))
-	if err != nil {
-		return "", &AppError{"read workflow url file", a.id, err}
-	}
-	return data, nil
-}
-
-func (a *app) SetWorkflowUrl(url string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if err := writeTrimSpace(appWorkflowUrlPath(a.id), url); err != nil {
-		return &AppError{"set workflow url file", a.id, err}
-	}
-	return nil
-}
-
 func (a *app) ResetModTime() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	now := time.Now()
-	if err := os.Chtimes(appPath(a.id), now, now); err != nil {
-		return &AppError{"change app dir mod time", a.id, err}
-	}
-	return nil
-}
-
-// used by appResolver.Delete, must be synchronized
-func (a *app) _prune() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if err := os.RemoveAll(appPath(a.id)); err != nil {
-		return &AppError{"remove app dir", a.id, err}
-	}
-	return nil
-}
-
-func (a *app) hasSignedFile() (bool, error) {
-	if _, err := os.Stat(appSignedPath(a.id)); os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return false, &AppError{"stat signed file", a.id, err}
-	}
-	return true, nil
-}
-
-func (a *app) setUnsigned(file io.ReadSeeker) error {
-	dstFile, err := os.Create(appUnsignedPath(a.id))
-	if err != nil {
-		return &AppError{"create unsigned", a.id, err}
-	}
-	defer dstFile.Close()
-	if _, err := io.Copy(dstFile, file); err != nil {
-		return &AppError{"write unsigned", a.id, err}
-	}
-	return nil
-}
-
-func (a *app) setProfileId(profile Profile) error {
-	if err := writeTrimSpace(appProfileIdPath(a.id), profile.GetId()); err != nil {
-		return &AppError{"write profile id file", a.id, err}
-	}
-	return nil
-}
-
-func (a *app) setName(name string) error {
-	if err := writeTrimSpace(appNamePath(a.id), name); err != nil {
-		return &AppError{"write name file", a.id, err}
-	}
-	return nil
-}
-
-func (a *app) setSignArgs(args string) error {
-	if err := writeTrimSpace(appSignArgsPath(a.id), args); err != nil {
-		return &AppError{"write sign args file", a.id, err}
-	}
-	return nil
-}
-
-func (a *app) setBundleId(id string) error {
-	if err := writeTrimSpace(appBundleIdPath(a.id), id); err != nil {
-		return &AppError{"write bundle id file", a.id, err}
-	}
-	return nil
-}
-
-func (a *app) setUserBundleId(id string) error {
-	if err := writeTrimSpace(appUserBundleIdPath(a.id), id); err != nil {
-		return &AppError{"write user bundle id file", a.id, err}
+	if err := os.Chtimes(a.resolvePath(AppRoot), now, now); err != nil {
+		return err
 	}
 	return nil
 }

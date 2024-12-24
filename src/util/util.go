@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,14 +14,14 @@ import (
 	"time"
 )
 
-func SafeJoin(basePath string, unsafePath ...string) string {
+func SafeJoinFilePaths(basePath string, unsafePath ...string) string {
 	return filepath.Join(basePath, filepath.Clean("/"+filepath.Join(unsafePath...)))
 }
 
-func JoinUrlsPanic(fullBaseUrl string, relativeUrl ...string) string {
+func JoinUrlsFatal(fullBaseUrl string, relativeUrl ...string) string {
 	result, err := JoinUrls(fullBaseUrl, relativeUrl...)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Send()
 	}
 	return result
 }
@@ -54,7 +55,7 @@ func WaitForServer(url string, timeout time.Duration) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return errors.New("reaching server timed out: " + url)
+			return errors.New("reach server timed out: " + url)
 		default:
 			if _, err := http.Get(url); err == nil {
 				return nil
@@ -65,16 +66,12 @@ func WaitForServer(url string, timeout time.Duration) error {
 }
 
 // Just like os.ReadDir but ignores hidden files starting with '.' such as macOS '.DS_Store'.
-func ReadDirNonHidden(name string) ([]os.DirEntry, error) {
-	dirs, err := os.ReadDir(name)
-	if err != nil {
-		return nil, err
-	}
+func RemoveHiddenDirs(dirs []os.DirEntry) []os.DirEntry {
 	var nonHiddenDirs []os.DirEntry
 	for _, dir := range dirs {
 		if !strings.HasPrefix(dir.Name(), ".") {
 			nonHiddenDirs = append(nonHiddenDirs, dir)
 		}
 	}
-	return nonHiddenDirs, nil
+	return nonHiddenDirs
 }

@@ -1,14 +1,20 @@
 package config
 
 import (
+	"SignTools/src/builders"
 	"crypto/rand"
 	"encoding/hex"
+	"github.com/ViRb3/koanf-extra/env"
+	"github.com/knadh/koanf"
+	kyaml "github.com/knadh/koanf/parsers/yaml"
+	kfile "github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/structs"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
-	"ios-signer-service/src/builders"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type BasicAuth struct {
@@ -23,24 +29,25 @@ type Builder struct {
 	SelfHosted builders.SelfHostedData `yaml:"selfhosted"`
 }
 
-func (b *Builder) MakeFirstEnabled() builders.Builder {
+func (b *Builder) MakeEnabled() map[string]builders.Builder {
+	results := map[string]builders.Builder{}
 	if b.GitHub.Enable {
-		return builders.MakeGitHub(&b.GitHub)
+		results["GitHub"] = builders.MakeGitHub(&b.GitHub)
 	}
 	if b.Semaphore.Enable {
-		return builders.MakeSemaphore(&b.Semaphore)
+		results["Semaphore"] = builders.MakeSemaphore(&b.Semaphore)
 	}
 	if b.SelfHosted.Enable {
-		return builders.MakeSelfHosted(&b.SelfHosted)
+		results["SelfHosted"] = builders.MakeSelfHosted(&b.SelfHosted)
 	}
-	return nil
+	return results
 }
 
 type File struct {
 	Builder             Builder   `yaml:"builder"`
 	ServerUrl           string    `yaml:"server_url"`
+	RedirectHttps       bool      `yaml:"redirect_https"`
 	SaveDir             string    `yaml:"save_dir"`
-	CleanupMins         uint64    `yaml:"cleanup_mins"`
 	CleanupIntervalMins uint64    `yaml:"cleanup_interval_mins"`
 	SignTimeoutMins     uint64    `yaml:"sign_timeout_mins"`
 	BasicAuth           BasicAuth `yaml:"basic_auth"`
@@ -51,7 +58,7 @@ func createDefaultFile() *File {
 		Builder: Builder{
 			GitHub: builders.GitHubData{
 				Enable:           false,
-				RepoName:         "ios-signer-ci",
+				RepoName:         "SignTools-CI",
 				OrgName:          "YOUR_PROFILE_NAME",
 				WorkflowFileName: "sign.yml",
 				Token:            "YOUR_TOKEN",
@@ -72,10 +79,10 @@ func createDefaultFile() *File {
 			},
 		},
 		ServerUrl:           "http://localhost:8080",
+		RedirectHttps:       false,
 		SaveDir:             "data",
-		CleanupMins:         60 * 24 * 7,
-		CleanupIntervalMins: 30,
-		SignTimeoutMins:     15,
+		SignTimeoutMins:     30,
+		CleanupIntervalMins: 1,
 		BasicAuth: BasicAuth{
 			Enable:   false,
 			Username: "admin",
@@ -84,11 +91,24 @@ func createDefaultFile() *File {
 	}
 }
 
+type EnvProfile struct {
+	Name        string `yaml:"name"`
+	ProvBase64  string `yaml:"prov_base64"`
+	CertPass    string `yaml:"cert_pass"`
+	CertBase64  string `yaml:"cert_base64"`
+	AccountName string `yaml:"account_name"`
+	AccountPass string `yaml:"account_pass"`
+}
+
+type ProfileBox struct {
+	EnvProfile `yaml:"profile"`
+}
+
 type Config struct {
-	Builder    builders.Builder
+	Builder    map[string]builders.Builder
 	BuilderKey string
-	PublicUrl  string
 	*File
+	EnvProfile *EnvProfile
 }
 
 var Current Config
@@ -98,23 +118,48 @@ func Load(fileName string) {
 	if !isAllowedExt(allowedExts, fileName) {
 		log.Fatal().Msgf("config extension not allowed: %v\n", allowedExts)
 	}
-	fileConfig, err := getFile(fileName)
+	mapDelim := '.'
+	fileConfig, err := getFile(mapDelim, fileName)
 	if err != nil {
 		log.Fatal().Err(err).Msg("get config")
 	}
-	builder := fileConfig.Builder.MakeFirstEnabled()
-	if builder == nil {
-		log.Fatal().Msg("init: no builder defined")
+	builderMap := fileConfig.Builder.MakeEnabled()
+	if len(builderMap) < 1 {
+		log.Fatal().Msg("init: no builders defined")
 	}
 	builderKey := make([]byte, 32)
 	if _, err := rand.Read(builderKey); err != nil {
 		log.Fatal().Err(err).Msg("init: error generating builder key")
 	}
+	profile, err := getProfileFromEnv(mapDelim)
+	if err != nil {
+		log.Fatal().Err(err).Msg("init: error checking for signing profile from envvars")
+	}
 	Current = Config{
-		Builder:    builder,
+		Builder:    builderMap,
 		BuilderKey: hex.EncodeToString(builderKey),
 		File:       fileConfig,
+		EnvProfile: profile,
 	}
+}
+
+// Loads a single signing profile entirely from environment variables.
+// Intended for use with Heroku without persistent storage.
+func getProfileFromEnv(mapDelim rune) (*EnvProfile, error) {
+	k := koanf.New(string(mapDelim))
+	if err := k.Load(structs.Provider(ProfileBox{}, "yaml"), nil); err != nil {
+		return nil, errors.WithMessage(err, "load default")
+	}
+	if err := k.Load(env.Provider(k, "", "_", func(s string) string {
+		return strings.ToLower(s)
+	}), nil); err != nil {
+		return nil, errors.WithMessage(err, "load envvars")
+	}
+	profile := EnvProfile{}
+	if err := k.UnmarshalWithConf("profile", &profile, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
+		return nil, errors.WithMessage(err, "unmarshal")
+	}
+	return &profile, nil
 }
 
 func isAllowedExt(allowedExts []string, fileName string) bool {
@@ -127,11 +172,25 @@ func isAllowedExt(allowedExts []string, fileName string) bool {
 	return false
 }
 
-func getFile(fileName string) (*File, error) {
-	fileConfig := createDefaultFile()
-	exists, err := readExistingFile(fileName, fileConfig)
-	if err != nil {
-		return nil, errors.WithMessage(err, "read existing")
+func getFile(mapDelim rune, fileName string) (*File, error) {
+	k := koanf.New(string(mapDelim))
+	if err := k.Load(structs.Provider(createDefaultFile(), "yaml"), nil); err != nil {
+		return nil, errors.WithMessage(err, "load default")
+	}
+	if err := k.Load(kfile.Provider(fileName), kyaml.Parser()); os.IsNotExist(err) {
+		log.Info().Str("name", fileName).Msg("creating config file")
+	} else if err != nil {
+		return nil, errors.WithMessage(err, "load existing")
+	}
+	// TODO: Fix entries with same path overwriting each other, e.g. PROFILE_CERT_NAME="bar" and PROFILE_CERT="foo"
+	if err := k.Load(env.Provider(k, "", "_", func(s string) string {
+		return strings.ToLower(s)
+	}), nil); err != nil {
+		return nil, errors.WithMessage(err, "load envvars")
+	}
+	fileConfig := File{}
+	if err := k.UnmarshalWithConf("", &fileConfig, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
+		return nil, errors.WithMessage(err, "unmarshal")
 	}
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -141,22 +200,5 @@ func getFile(fileName string) (*File, error) {
 	if err := yaml.NewEncoder(file).Encode(&fileConfig); err != nil {
 		return nil, errors.WithMessage(err, "write")
 	}
-	if !exists {
-		return nil, errors.New("no file found, generating one")
-	}
-	return fileConfig, nil
-}
-
-func readExistingFile(fileName string, fileConfig *File) (bool, error) {
-	file, err := os.Open(fileName)
-	if os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return true, errors.WithMessage(err, "open")
-	}
-	defer file.Close()
-	if err := yaml.NewDecoder(file).Decode(fileConfig); err != nil {
-		return true, errors.WithMessage(err, "decode")
-	}
-	return true, nil
+	return &fileConfig, nil
 }

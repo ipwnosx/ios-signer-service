@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SignTools | 2FA</title>
+    <title>SignTools | Rename App</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
@@ -35,36 +35,22 @@
       <div class="container px-4">
         <ol class="breadcrumb bg-transparent py-2 my-0 me-auto text-white">
           <li class="breadcrumb-item"><a href="/">SignTools</a></li>
-          <li class="breadcrumb-item">2FA</li>
+          <li class="breadcrumb-item">Rename App</li>
         </ol>
       </div>
     </nav>
     <div class="modal show" id="uploadModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <form id="uploadForm" method="post" enctype="multipart/form-data" novalidate>
+          <form id="uploadForm" method="post" enctype="multipart/form-data">
             <div class="modal-header">
-              <h5 class="modal-title">Submit 2FA code</h5>
+              <h5 class="modal-title">Rename App</h5>
               <a id="btnModalClose" class="btn-close" href="/"></a>
             </div>
             <div class="modal-body">
               <div class="mb-0">
-                <label class="form-check-label mb-3" for="formToken">
-                  If two-factor authentication (2FA) is necessary to sign this app, you will receive a 6-digit
-                  verification code by Apple after about a minute. If you do, please enter it here:
-                </label>
-                <input
-                  type="text"
-                  class="form-control"
-                  name="formToken"
-                  id="formToken"
-                  inputmode="numeric"
-                  pattern="[0-9]*"
-                  autocomplete="one-time-code"
-                  placeholder="123456"
-                  autofocus
-                />
-                <div class="invalid-feedback">Please enter a valid 6-digit 2FA code.</div>
+                <label class="form-check-label mb-3" for="formName"> App name </label>
+                <input required type="text" class="form-control" name="name" id="formName" value="{{.AppName}}" />
               </div>
             </div>
             <div class="modal-footer">
@@ -78,28 +64,13 @@
 
   <script>
     const modalElem = document.getElementById("uploadModal");
-    const formToken = document.getElementById("formToken");
-    let form = document.getElementById("uploadForm");
+    const formName = document.getElementById("formName");
+
     const modal = new bootstrap.Modal(modalElem, {
       backdrop: "static",
       keyboard: false,
     });
-
-    form.addEventListener(
-      "submit",
-      function (event) {
-        formToken.classList.remove("is-invalid");
-        formToken.classList.remove("is-valid");
-        if (formToken.value.length !== 6) {
-          event.preventDefault();
-          event.stopPropagation();
-          formToken.classList.add("is-invalid");
-        }
-      },
-      false
-    );
-
     modal.show();
-    formToken.focus();
+    formName.focus();
   </script>
 </html>
